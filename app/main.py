@@ -13,7 +13,7 @@ import time
 
 from app.config import settings
 from app.db.session import init_db
-from app.api.v1 import extractions, templates, countries, analytics, accounts
+from app.api.v1 import extractions, templates, countries, analytics, accounts, webhooks
 
 # Configure logging
 logging.basicConfig(
@@ -174,6 +174,12 @@ app.include_router(
     analytics.router,
     prefix=f"{settings.API_V1_PREFIX}/analytics",
     tags=["Analytics"]
+)
+
+app.include_router(
+    webhooks.router,
+    prefix=f"{settings.API_V1_PREFIX}/webhooks",
+    tags=["Webhooks"]
 )
 
 
