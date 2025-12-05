@@ -65,6 +65,10 @@ GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
+# Port management
+AUTO_KILL_PORTS="${AUTO_KILL_PORTS:-}"
+ENVIRONMENT="${ENVIRONMENT:-development}"
+
 log_info "Starting AIVision deployment..."
 log_info "App directory: $APP_DIR"
 log_info "Database: $DB_NAME"
@@ -107,6 +111,20 @@ free_port() {
     # Display processes using the port
     log_info "Processes using port $port:"
     lsof -i :$port
+
+    # Check if it's a Docker container
+    if lsof -i :$port | grep -q docker-proxy; then
+        log_warn "Port $port is used by Docker. Attempting to stop Docker containers..."
+        if command -v docker &> /dev/null; then
+            docker ps -q | xargs -r docker stop 2>/dev/null || true
+            sleep 2
+            # Check if port is now free
+            if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+                log_info "✓ Docker containers stopped, port $port is now free"
+                return 0
+            fi
+        fi
+    fi
 
     # Ask user if we should kill the processes (in production, auto-kill)
     if [ -n "$AUTO_KILL_PORTS" ] || [ "$ENVIRONMENT" = "production" ]; then
