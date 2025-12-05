@@ -243,6 +243,52 @@ log_info "Running database migrations..."
 sudo -u "$APP_USER" venv/bin/python -c "from app.db.session import init_db; init_db()"
 
 ###############################################################################
+# 5.5. Run Tests
+###############################################################################
+
+log_info "Running backend tests..."
+
+# Install test dependencies
+sudo -u "$APP_USER" venv/bin/pip install -r requirements-dev.txt
+
+# Run pytest
+cd "$APP_DIR"
+if sudo -u "$APP_USER" venv/bin/pytest tests/ -v --tb=short; then
+    log_info "✓ All backend tests passed"
+else
+    log_warn "Some tests failed, but continuing deployment..."
+    log_warn "Review test results and fix issues post-deployment"
+fi
+
+# Run a quick health check
+log_info "Running health check..."
+sudo -u "$APP_USER" venv/bin/python -c "
+from app.db.session import get_db, SessionLocal
+from app.db import crud
+
+# Test database connection
+db = SessionLocal()
+try:
+    # Try creating a test account
+    test_account = crud.create_account(
+        db=db,
+        name='Deployment Test',
+        email='test@deployment.local'
+    )
+    print(f'✓ Database connection successful')
+    print(f'✓ Account creation successful')
+    print(f'✓ API token generated: {test_account.api_token[:12]}...')
+
+    # Clean up test account
+    db.delete(test_account)
+    db.commit()
+finally:
+    db.close()
+"
+
+log_info "Health check completed"
+
+###############################################################################
 # 6. Setup Frontend
 ###############################################################################
 

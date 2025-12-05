@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, FileText } from 'lucide-react';
 import { api } from '../services/api';
 import type { Template, TemplateField } from '../types';
+import { Loading, ErrorMessage, EmptyState, CardSkeleton } from '../components/Loading';
+import toast from 'react-hot-toast';
 
 /**
  * Templates Management Page
@@ -18,8 +20,10 @@ import type { Template, TemplateField } from '../types';
 export function Templates() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Field types available for customization
   const fieldTypes = [
@@ -39,10 +43,13 @@ export function Templates() {
   const loadTemplates = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await api.getTemplates();
       setTemplates(data);
-    } catch (error) {
-      console.error('Failed to load templates:', error);
+    } catch (err: any) {
+      console.error('Failed to load templates:', err);
+      setError(err.response?.data?.detail || 'Failed to load templates. Please try again.');
+      toast.error('Failed to load templates');
     } finally {
       setLoading(false);
     }
@@ -72,18 +79,34 @@ export function Templates() {
   const handleSaveTemplate = async () => {
     if (!editingTemplate) return;
 
+    if (!editingTemplate.name.trim()) {
+      toast.error('Please enter a template name');
+      return;
+    }
+
+    if (editingTemplate.fields.length === 0) {
+      toast.error('Please add at least one field');
+      return;
+    }
+
     try {
+      setSaving(true);
       if (isCreating) {
         await api.createTemplate(editingTemplate);
+        toast.success('Template created successfully');
       } else {
         await api.updateTemplate(editingTemplate.id, editingTemplate);
+        toast.success('Template updated successfully');
       }
       setEditingTemplate(null);
       setIsCreating(false);
       await loadTemplates();
-    } catch (error) {
-      console.error('Failed to save template:', error);
-      alert('Failed to save template. Please try again.');
+    } catch (err: any) {
+      console.error('Failed to save template:', err);
+      const errorMessage = err.response?.data?.detail || 'Failed to save template. Please try again.';
+      toast.error(errorMessage);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -92,10 +115,12 @@ export function Templates() {
 
     try {
       await api.deleteTemplate(templateId);
+      toast.success('Template deleted successfully');
       await loadTemplates();
-    } catch (error) {
-      console.error('Failed to delete template:', error);
-      alert('Failed to delete template. Please try again.');
+    } catch (err: any) {
+      console.error('Failed to delete template:', err);
+      const errorMessage = err.response?.data?.detail || 'Failed to delete template. Please try again.';
+      toast.error(errorMessage);
     }
   };
 
@@ -138,8 +163,32 @@ export function Templates() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading templates...</div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Templates</h1>
+          <p className="mt-2 text-gray-600">
+            Manage document extraction templates and customize fields
+          </p>
+        </div>
+        <CardSkeleton count={6} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Templates</h1>
+          <p className="mt-2 text-gray-600">
+            Manage document extraction templates and customize fields
+          </p>
+        </div>
+        <ErrorMessage
+          title="Failed to Load Templates"
+          message={error}
+          onRetry={loadTemplates}
+        />
       </div>
     );
   }
@@ -374,14 +423,27 @@ export function Templates() {
                 <button
                   onClick={handleSaveTemplate}
                   disabled={
+                    saving ||
                     !editingTemplate.name ||
                     !editingTemplate.category ||
                     editingTemplate.fields.length === 0
                   }
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Template
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Template
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -462,15 +524,15 @@ export function Templates() {
       </div>
 
       {templates.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 mb-4">No templates found</p>
-          <button
-            onClick={handleCreateTemplate}
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            Create your first template
-          </button>
-        </div>
+        <EmptyState
+          icon={<FileText className="w-16 h-16 text-gray-300" />}
+          title="No Templates Yet"
+          message="Get started by creating your first extraction template to define what fields to extract from documents."
+          action={{
+            label: "Create Template",
+            onClick: handleCreateTemplate,
+          }}
+        />
       )}
     </div>
   );
