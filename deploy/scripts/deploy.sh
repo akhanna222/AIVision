@@ -70,6 +70,100 @@ log_info "App directory: $APP_DIR"
 log_info "Database: $DB_NAME"
 
 ###############################################################################
+# 0.5. Check and Free Required Ports
+###############################################################################
+
+log_info "Checking required ports..."
+
+# Function to check if port is in use
+check_port() {
+    local port=$1
+    local port_name=$2
+
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        log_warn "Port $port ($port_name) is already in use"
+        return 0
+    else
+        log_info "✓ Port $port ($port_name) is available"
+        return 1
+    fi
+}
+
+# Function to free a port
+free_port() {
+    local port=$1
+    local port_name=$2
+
+    log_info "Attempting to free port $port ($port_name)..."
+
+    # Get PIDs using the port
+    pids=$(lsof -ti :$port)
+
+    if [ -z "$pids" ]; then
+        log_info "Port $port is already free"
+        return 0
+    fi
+
+    # Display processes using the port
+    log_info "Processes using port $port:"
+    lsof -i :$port
+
+    # Ask user if we should kill the processes (in production, auto-kill)
+    if [ -n "$AUTO_KILL_PORTS" ] || [ "$ENVIRONMENT" = "production" ]; then
+        log_info "Auto-killing processes on port $port..."
+        for pid in $pids; do
+            process_name=$(ps -p $pid -o comm=)
+            log_info "Killing process $pid ($process_name)..."
+            kill -15 $pid 2>/dev/null || kill -9 $pid 2>/dev/null
+            sleep 1
+        done
+    else
+        read -p "Kill processes using port $port? (y/n): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            for pid in $pids; do
+                process_name=$(ps -p $pid -o comm=)
+                log_info "Killing process $pid ($process_name)..."
+                kill -15 $pid 2>/dev/null || kill -9 $pid 2>/dev/null
+                sleep 1
+            done
+        else
+            log_error "Cannot proceed with port $port occupied. Please free it manually."
+            exit 1
+        fi
+    fi
+
+    # Verify port is free
+    sleep 2
+    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        log_error "Failed to free port $port"
+        return 1
+    else
+        log_info "✓ Port $port freed successfully"
+        return 0
+    fi
+}
+
+# Check required ports
+REQUIRED_PORTS="8000:Backend 3000:Frontend 5432:PostgreSQL 80:HTTP 443:HTTPS"
+
+for port_info in $REQUIRED_PORTS; do
+    port=$(echo $port_info | cut -d: -f1)
+    name=$(echo $port_info | cut -d: -f2)
+
+    if check_port $port "$name"; then
+        # Port is in use, try to free it
+        free_port $port "$name" || {
+            log_error "Critical: Could not free port $port ($name)"
+            log_error "Please manually stop services using this port"
+            exit 1
+        }
+    fi
+done
+
+log_info "✓ All required ports are available"
+
+###############################################################################
 # 1. System Updates and Dependencies
 ###############################################################################
 
@@ -88,6 +182,8 @@ apt-get install -y \
     git \
     curl \
     wget \
+    lsof \
+    net-tools \
     build-essential \
     libpq-dev \
     poppler-utils \

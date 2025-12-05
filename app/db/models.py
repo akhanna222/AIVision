@@ -189,6 +189,13 @@ class Extraction(Base):
     fallback_models = Column(JSON, default=list)
     confidence_threshold = Column(Float, default=0.7)
 
+    # Multi-model extraction tracking
+    extraction_strategy = Column(String(20), nullable=True)  # sequential, parallel, hybrid
+    field_model_map = Column(JSON, nullable=True)  # Maps field_name -> model_name
+    extraction_attempts = Column(JSON, nullable=True)  # All model attempts with details
+    models_tried = Column(JSON, default=list)  # List of all models tried
+    extraction_summary = Column(Text, nullable=True)  # User-friendly summary
+
     # Status
     status = Column(String(20), default="pending")  # pending, processing, completed, failed, partial
 
