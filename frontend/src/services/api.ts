@@ -297,6 +297,38 @@ class APIService {
     return response.data;
   }
 
+  async getAnalytics(params?: { days?: number }) {
+    const response = await this.client.get('/api/v1/analytics/usage', { params });
+    return response.data;
+  }
+
+  // ============================================================================
+  // API LOGS
+  // ============================================================================
+
+  async getAPILogs(params?: {
+    days?: number;
+    limit?: number;
+    offset?: number;
+    method?: string;
+    status_code?: number;
+  }) {
+    const response = await this.client.get('/api/v1/analytics/logs', { params });
+    return response.data;
+  }
+
+  // ============================================================================
+  // TEMPLATES (Alias for backward compatibility)
+  // ============================================================================
+
+  async getTemplates(params?: {
+    category?: string;
+    country_id?: number;
+    active_only?: boolean;
+  }) {
+    return this.listTemplates(params);
+  }
+
   // ============================================================================
   // WEBHOOKS
   // ============================================================================

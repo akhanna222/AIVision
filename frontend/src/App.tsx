@@ -15,6 +15,9 @@ import Templates from '@/pages/Templates';
 import Analytics from '@/pages/Analytics';
 import Settings from '@/pages/Settings';
 import Login from '@/pages/Login';
+import { Categories } from '@/pages/Categories';
+import { Tags } from '@/pages/Tags';
+import { APILogs } from '@/pages/APILogs';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,7 +42,10 @@ function App() {
             <Route path="/batch" element={<BatchExtract />} />
             <Route path="/results/:id" element={<Results />} />
             <Route path="/templates" element={<Templates />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/tags" element={<Tags />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/logs" element={<APILogs />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>

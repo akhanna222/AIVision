@@ -1,0 +1,477 @@
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
+import { api } from '../services/api';
+import type { Template, TemplateField } from '../types';
+
+/**
+ * Templates Management Page
+ *
+ * Provides a user-friendly interface for managing document extraction templates.
+ * Features:
+ * - View all templates with usage statistics
+ * - Create new templates with custom fields
+ * - Edit existing templates
+ * - Delete templates
+ * - Field customization (name, type, required, validation)
+ * - Category management (invoice, mortgage, bank_statement, etc.)
+ */
+export function Templates() {
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Field types available for customization
+  const fieldTypes = [
+    'string', 'number', 'currency', 'date', 'email', 'phone', 'address', 'boolean'
+  ];
+
+  // Document categories
+  const categories = [
+    'invoice', 'receipt', 'mortgage_application', 'bank_statement',
+    'passport', 'drivers_license', 'utility_bill', 'tax_document', 'other'
+  ];
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getTemplates();
+      setTemplates(data);
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTemplate = () => {
+    setIsCreating(true);
+    setEditingTemplate({
+      id: '',
+      name: '',
+      category: 'other',
+      country_code: 'IE',
+      description: '',
+      fields: [],
+      is_active: true,
+      account_id: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  };
+
+  const handleEditTemplate = (template: Template) => {
+    setEditingTemplate({ ...template });
+    setIsCreating(false);
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!editingTemplate) return;
+
+    try {
+      if (isCreating) {
+        await api.createTemplate(editingTemplate);
+      } else {
+        await api.updateTemplate(editingTemplate.id, editingTemplate);
+      }
+      setEditingTemplate(null);
+      setIsCreating(false);
+      await loadTemplates();
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      alert('Failed to save template. Please try again.');
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm('Are you sure you want to delete this template?')) return;
+
+    try {
+      await api.deleteTemplate(templateId);
+      await loadTemplates();
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      alert('Failed to delete template. Please try again.');
+    }
+  };
+
+  const handleAddField = () => {
+    if (!editingTemplate) return;
+
+    const newField: TemplateField = {
+      name: '',
+      type: 'string',
+      required: false,
+      description: '',
+    };
+
+    setEditingTemplate({
+      ...editingTemplate,
+      fields: [...editingTemplate.fields, newField],
+    });
+  };
+
+  const handleUpdateField = (index: number, field: Partial<TemplateField>) => {
+    if (!editingTemplate) return;
+
+    const updatedFields = [...editingTemplate.fields];
+    updatedFields[index] = { ...updatedFields[index], ...field };
+
+    setEditingTemplate({
+      ...editingTemplate,
+      fields: updatedFields,
+    });
+  };
+
+  const handleRemoveField = (index: number) => {
+    if (!editingTemplate) return;
+
+    setEditingTemplate({
+      ...editingTemplate,
+      fields: editingTemplate.fields.filter((_, i) => i !== index),
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading templates...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Templates</h1>
+          <p className="mt-2 text-gray-600">
+            Manage document extraction templates and customize fields
+          </p>
+        </div>
+        <button
+          onClick={handleCreateTemplate}
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          New Template
+        </button>
+      </div>
+
+      {/* Template Editor Modal */}
+      {editingTemplate && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {isCreating ? 'Create Template' : 'Edit Template'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setEditingTemplate(null);
+                    setIsCreating(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Template Basic Info */}
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Template Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editingTemplate.name}
+                    onChange={(e) =>
+                      setEditingTemplate({ ...editingTemplate, name: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., Irish Utility Bill"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category *
+                    </label>
+                    <select
+                      value={editingTemplate.category}
+                      onChange={(e) =>
+                        setEditingTemplate({ ...editingTemplate, category: e.target.value })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat.replace(/_/g, ' ').toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Country Code *
+                    </label>
+                    <input
+                      type="text"
+                      value={editingTemplate.country_code}
+                      onChange={(e) =>
+                        setEditingTemplate({
+                          ...editingTemplate,
+                          country_code: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="e.g., IE, UK, US"
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={editingTemplate.description || ''}
+                    onChange={(e) =>
+                      setEditingTemplate({ ...editingTemplate, description: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={2}
+                    placeholder="Brief description of this template..."
+                  />
+                </div>
+              </div>
+
+              {/* Fields Section */}
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Fields</h3>
+                  <button
+                    onClick={handleAddField}
+                    className="flex items-center px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Field
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {editingTemplate.fields.map((field, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div className="grid grid-cols-12 gap-3">
+                        <div className="col-span-4">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Field Name *
+                          </label>
+                          <input
+                            type="text"
+                            value={field.name}
+                            onChange={(e) =>
+                              handleUpdateField(index, { name: e.target.value })
+                            }
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="e.g., total_amount"
+                          />
+                        </div>
+
+                        <div className="col-span-3">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Type *
+                          </label>
+                          <select
+                            value={field.type}
+                            onChange={(e) =>
+                              handleUpdateField(index, { type: e.target.value })
+                            }
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            {fieldTypes.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="col-span-4">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Description
+                          </label>
+                          <input
+                            type="text"
+                            value={field.description || ''}
+                            onChange={(e) =>
+                              handleUpdateField(index, { description: e.target.value })
+                            }
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Optional hint..."
+                          />
+                        </div>
+
+                        <div className="col-span-1 flex items-end justify-end">
+                          <button
+                            onClick={() => handleRemoveField(index)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                            title="Remove field"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 flex items-center">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={field.required || false}
+                            onChange={(e) =>
+                              handleUpdateField(index, { required: e.target.checked })
+                            }
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Required field</span>
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+
+                  {editingTemplate.fields.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No fields added yet. Click "Add Field" to get started.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setEditingTemplate(null);
+                    setIsCreating(false);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveTemplate}
+                  disabled={
+                    !editingTemplate.name ||
+                    !editingTemplate.category ||
+                    editingTemplate.fields.length === 0
+                  }
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Template
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Templates List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {templates.map((template) => (
+          <div
+            key={template.id}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  {template.name}
+                </h3>
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded">
+                    {template.category.replace(/_/g, ' ')}
+                  </span>
+                  <span>{template.country_code}</span>
+                </div>
+              </div>
+              <div className="flex space-x-1">
+                <button
+                  onClick={() => handleEditTemplate(template)}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Edit template"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDeleteTemplate(template.id)}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                  title="Delete template"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {template.description && (
+              <p className="text-sm text-gray-600 mb-4">{template.description}</p>
+            )}
+
+            <div className="space-y-2">
+              <div className="text-sm">
+                <span className="font-medium text-gray-700">Fields:</span>
+                <span className="ml-2 text-gray-600">{template.fields.length}</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {template.fields.slice(0, 5).map((field, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded"
+                  >
+                    {field.name}
+                  </span>
+                ))}
+                {template.fields.length > 5 && (
+                  <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded">
+                    +{template.fields.length - 5} more
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {template.usage_count !== undefined && (
+              <div className="mt-4 pt-4 border-t border-gray-200 text-sm text-gray-600">
+                Used {template.usage_count} times
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {templates.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500 mb-4">No templates found</p>
+          <button
+            onClick={handleCreateTemplate}
+            className="text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Create your first template
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

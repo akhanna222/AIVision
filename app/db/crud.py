@@ -484,3 +484,45 @@ def log_api_request(
     )
     db.add(log)
     db.commit()
+
+
+def get_api_logs(
+    db: Session,
+    account_id: int,
+    days: int = 7,
+    limit: int = 100,
+    offset: int = 0,
+    method: Optional[str] = None,
+    status_code: Optional[int] = None
+) -> List[APILog]:
+    """
+    Get API logs for account with optional filters.
+
+    Args:
+        db: Database session
+        account_id: Account ID to filter logs
+        days: Number of days to look back
+        limit: Maximum number of logs to return
+        offset: Pagination offset
+        method: Optional HTTP method filter
+        status_code: Optional status code filter
+
+    Returns:
+        List of APILog objects
+    """
+    since_date = datetime.utcnow() - timedelta(days=days)
+
+    query = db.query(APILog).filter(
+        and_(
+            APILog.account_id == account_id,
+            APILog.created_at >= since_date
+        )
+    )
+
+    if method:
+        query = query.filter(APILog.method == method.upper())
+
+    if status_code:
+        query = query.filter(APILog.status_code == status_code)
+
+    return query.order_by(desc(APILog.created_at)).limit(limit).offset(offset).all()

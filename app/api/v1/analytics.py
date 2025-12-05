@@ -246,3 +246,68 @@ async def get_model_performance(
         "total_extractions": total_usage,
         "models": model_performance
     }
+
+
+@router.get("/logs")
+async def get_api_logs(
+    days: int = Query(7, ge=1, le=90),
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    method: Optional[str] = None,
+    status_code: Optional[int] = None,
+    account: Account = Depends(get_current_account),
+    db: Session = Depends(get_db)
+):
+    """
+    Get API call logs for the account.
+
+    **Query Parameters:**
+    - days: Number of days to fetch logs (default: 7)
+    - limit: Maximum number of logs to return (default: 100)
+    - offset: Pagination offset (default: 0)
+    - method: Filter by HTTP method (GET, POST, PUT, DELETE, etc.)
+    - status_code: Filter by HTTP status code
+
+    **Returns:**
+    - List of API logs with:
+      - Endpoint called
+      - HTTP method
+      - Status code
+      - Response time
+      - Timestamp
+      - Request/response metadata
+    """
+    from datetime import datetime, timedelta
+
+    # Fetch API logs from the database
+    api_logs = crud.get_api_logs(
+        db,
+        account_id=account.id,
+        days=days,
+        limit=limit,
+        offset=offset,
+        method=method,
+        status_code=status_code
+    )
+
+    logs_list = [
+        {
+            "id": log.id,
+            "account_id": log.account_id,
+            "endpoint": log.endpoint,
+            "method": log.method,
+            "status_code": log.status_code,
+            "response_time_ms": log.response_time_ms,
+            "ip_address": log.ip_address,
+            "user_agent": log.user_agent,
+            "created_at": log.created_at.isoformat()
+        }
+        for log in api_logs
+    ]
+
+    return {
+        "total": len(logs_list),
+        "limit": limit,
+        "offset": offset,
+        "logs": logs_list
+    }
