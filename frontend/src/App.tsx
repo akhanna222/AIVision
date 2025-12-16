@@ -19,6 +19,8 @@ import Login from '@/pages/Login';
 import { Categories } from '@/pages/Categories';
 import { Tags } from '@/pages/Tags';
 import { APILogs } from '@/pages/APILogs';
+import TemplateBuilder from '@/pages/TemplateBuilder';
+import SimpleExtract from '@/pages/SimpleExtract';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,6 +75,8 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/template-builder" element={<TemplateBuilder />} />
+          <Route path="/simple-extract" element={<SimpleExtract />} />
 
           {/* Authenticated routes with layout */}
           <Route

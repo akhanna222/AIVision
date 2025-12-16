@@ -13,7 +13,7 @@ import time
 
 from app.config import settings
 from app.db.session import init_db
-from app.api.v1 import extractions, templates, countries, analytics, accounts, webhooks
+from app.api.v1 import extractions, templates, countries, analytics, accounts, webhooks, public_templates, public_extract
 
 # Configure logging
 logging.basicConfig(
@@ -180,6 +180,19 @@ app.include_router(
     webhooks.router,
     prefix=f"{settings.API_V1_PREFIX}/webhooks",
     tags=["Webhooks"]
+)
+
+# Public endpoints (no authentication required)
+app.include_router(
+    public_templates.router,
+    prefix=f"{settings.API_V1_PREFIX}/public/templates",
+    tags=["Public Templates"]
+)
+
+app.include_router(
+    public_extract.router,
+    prefix=f"{settings.API_V1_PREFIX}/public",
+    tags=["Public Extraction"]
 )
 
 
