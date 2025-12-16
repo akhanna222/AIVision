@@ -328,8 +328,8 @@ STORAGE_TYPE=none  # Do not store files, only JSON in database
 STORE_ORIGINAL_FILES=false
 STORE_EXTRACTED_IMAGES=false
 
-# CORS
-ALLOWED_ORIGINS=http://localhost,https://$DOMAIN
+# CORS (allow all origins for public API access)
+ALLOWED_ORIGINS=*
 
 # Document Processing
 MAX_FILE_SIZE_MB=50

@@ -195,6 +195,29 @@ curl http://localhost:8000/health
 
 Open browser: `http://YOUR_EC2_PUBLIC_IP`
 
+### 🌐 Access Public Template Builder & Extraction UIs
+
+The deployment includes public UIs that don't require authentication:
+
+**Template Builder** (create custom OCR templates):
+```
+http://YOUR_EC2_PUBLIC_IP/template-builder
+```
+
+**Simple Extraction** (extract data using templates):
+```
+http://YOUR_EC2_PUBLIC_IP/simple-extract
+```
+
+**📖 For detailed public UI setup and external access, see**: [`README_PUBLIC_UI_ACCESS.md`](README_PUBLIC_UI_ACCESS.md)
+
+This guide covers:
+- Exposing UIs publicly with proper CORS
+- Setting up custom domains
+- SSL certificate configuration
+- Security best practices
+- Embedding in your applications
+
 ---
 
 ## 🎯 Step 6: Create First Account & Test (5 minutes)
