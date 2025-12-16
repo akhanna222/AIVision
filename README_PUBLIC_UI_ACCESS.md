@@ -84,7 +84,7 @@ Update the CORS settings:
 
 ```bash
 # Change this line:
-ALLOWED_ORIGINS=http://localhost,https://yourdomain.com
+ALLOWED_ORIGINS=http://localhost,https://ocr.epingu.org
 
 # To this (allow all origins for public API):
 ALLOWED_ORIGINS=*
@@ -93,7 +93,7 @@ ALLOWED_ORIGINS=*
 Or for more security, allow specific origins:
 
 ```bash
-ALLOWED_ORIGINS=http://your-ec2-ip,https://yourdomain.com,http://localhost:3000
+ALLOWED_ORIGINS=https://ocr.epingu.org,https://epingu.org,http://localhost:3000
 ```
 
 Restart the backend:
@@ -129,7 +129,9 @@ http://YOUR_EC2_PUBLIC_IP/simple-extract
 
 ## 🌍 Setup Custom Domain (Optional, 10 minutes)
 
-For professional URLs like `https://ocr.yourdomain.com`:
+For professional URLs like `https://ocr.epingu.org`:
+
+**📖 For epingu.org specific setup, see**: [`DEPLOY_EPINGU_ORG.md`](DEPLOY_EPINGU_ORG.md)
 
 ### Step 1: Point Domain to EC2
 
@@ -164,7 +166,7 @@ Update the `server_name`:
 ```nginx
 server {
     listen 80;
-    server_name ocr.yourdomain.com;  # Change this line
+    server_name ocr.epingu.org;  # Change this line
 
     # ... rest of config
 }
@@ -181,10 +183,10 @@ sudo systemctl restart nginx
 
 ```bash
 # Install Let's Encrypt certificate
-sudo certbot --nginx -d ocr.yourdomain.com
+sudo certbot --nginx -d ocr.epingu.org
 
 # Follow prompts:
-# - Enter email: your@email.com
+# - Enter email: admin@epingu.org
 # - Agree to terms: Y
 # - Share email: N
 # - Redirect HTTP to HTTPS: 2 (recommended)
@@ -196,10 +198,10 @@ Certificate will auto-renew every 90 days.
 
 ```
 Template Builder:
-https://ocr.yourdomain.com/template-builder
+https://ocr.epingu.org/template-builder
 
 Simple Extraction:
-https://ocr.yourdomain.com/simple-extract
+https://ocr.epingu.org/simple-extract
 ```
 
 ---
@@ -422,13 +424,13 @@ sudo systemctl restart aivision
 
 1. Ensure domain DNS is correct:
    ```bash
-   nslookup ocr.yourdomain.com
+   nslookup ocr.epingu.org
    # Should point to your EC2 IP
    ```
 
 2. Reinstall certificate:
    ```bash
-   sudo certbot --nginx -d ocr.yourdomain.com --force-renewal
+   sudo certbot --nginx -d ocr.epingu.org --force-renewal
    ```
 
 3. Check Nginx SSL config:
@@ -515,12 +517,12 @@ If you want the frontend hosted on a different domain:
 
 **Backend (.env):**
 ```bash
-ALLOWED_ORIGINS=https://frontend.example.com,https://ocr.yourdomain.com
+ALLOWED_ORIGINS=https://frontend.example.com,https://ocr.epingu.org
 ```
 
 **Frontend (.env.production):**
 ```bash
-VITE_API_URL=https://ocr.yourdomain.com
+VITE_API_URL=https://ocr.epingu.org
 ```
 
 Rebuild frontend:
@@ -559,15 +561,15 @@ Create an Auto Scaling Group:
 ```
 Template Builder:
 http://YOUR_EC2_IP/template-builder
-https://ocr.yourdomain.com/template-builder
+https://ocr.epingu.org/template-builder
 
 Simple Extraction:
 http://YOUR_EC2_IP/simple-extract
-https://ocr.yourdomain.com/simple-extract
+https://ocr.epingu.org/simple-extract
 
 API Docs:
 http://YOUR_EC2_IP/docs
-https://ocr.yourdomain.com/docs
+https://ocr.epingu.org/docs
 ```
 
 ### Key Files
@@ -631,7 +633,7 @@ sudo lsof -i :8000
 
     <!-- Embed as iframe -->
     <iframe
-        src="https://ocr.yourdomain.com/simple-extract"
+        src="https://ocr.epingu.org/simple-extract"
         width="100%"
         height="800px"
         frameborder="0">
@@ -645,7 +647,7 @@ sudo lsof -i :8000
             formData.append('model', 'gemini-2.0-flash-exp');
 
             const response = await fetch(
-                `https://ocr.yourdomain.com/api/v1/public/extract/${templateName}`,
+                `https://ocr.epingu.org/api/v1/public/extract/${templateName}`,
                 {
                     method: 'POST',
                     body: formData
@@ -683,7 +685,7 @@ async function pickAndExtract() {
 
         // Extract
         const response = await fetch(
-            'https://ocr.yourdomain.com/api/v1/public/extract/invoice',
+            'https://ocr.epingu.org/api/v1/public/extract/invoice',
             {
                 method: 'POST',
                 body: formData
