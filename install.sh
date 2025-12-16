@@ -428,21 +428,45 @@ log_success "Dependencies installed"
 # Clone Repository
 ###############################################################################
 
-log_step "Downloading AIVision"
+log_step "Setting up AIVision Code"
 
 mkdir -p $APP_DIR
-cd $APP_DIR
 
-if [ -d ".git" ]; then
-    log_info "Updating existing repository..."
-    sudo -u $ACTUAL_USER git pull
+# Check if we're already in a git repo
+if [ -d "$APP_DIR/.git" ]; then
+    log_info "Repository already exists at $APP_DIR"
+    cd $APP_DIR
+
+    # Check current branch
+    CURRENT_BRANCH=$(sudo -u $ACTUAL_USER git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    TARGET_BRANCH="claude/ocr-service-templates-01MnNQz5UdYNuAmnsHtobQtM"
+
+    if [ "$CURRENT_BRANCH" = "$TARGET_BRANCH" ]; then
+        log_success "Already on correct branch: $TARGET_BRANCH"
+        read -p "Update code from remote? (y/n) [default: n]: " UPDATE_CODE
+        UPDATE_CODE=${UPDATE_CODE:-n}
+        if [[ $UPDATE_CODE =~ ^[Yy]$ ]]; then
+            log_info "Pulling latest changes..."
+            sudo -u $ACTUAL_USER git pull origin $TARGET_BRANCH
+            log_success "Code updated"
+        else
+            log_info "Using existing code (no update)"
+        fi
+    else
+        log_warn "Repository is on branch: $CURRENT_BRANCH"
+        log_info "Switching to branch: $TARGET_BRANCH"
+        sudo -u $ACTUAL_USER git fetch origin
+        sudo -u $ACTUAL_USER git checkout $TARGET_BRANCH
+        sudo -u $ACTUAL_USER git pull origin $TARGET_BRANCH
+        log_success "Switched to correct branch"
+    fi
 else
     log_info "Cloning repository..."
+    cd $APP_DIR
     sudo -u $ACTUAL_USER git clone -b claude/ocr-service-templates-01MnNQz5UdYNuAmnsHtobQtM \
         https://github.com/akhanna222/AIVision.git .
+    log_success "Repository cloned"
 fi
-
-log_success "Code downloaded"
 
 ###############################################################################
 # Setup PostgreSQL
