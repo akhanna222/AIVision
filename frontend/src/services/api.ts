@@ -435,6 +435,15 @@ class APIService {
     const response = await this.client.post(`/api/v1/webhooks/${webhookId}/test`);
     return response.data;
   }
+
+  // Aliases for convenience
+  setToken(token: string) {
+    this.setAuthToken(token);
+  }
+
+  async extract(file: File, options?: { template_id?: string; vision_model?: string }) {
+    return this.extractDocument(file, options);
+  }
 }
 
 export const api = new APIService();

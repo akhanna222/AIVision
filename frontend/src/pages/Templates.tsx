@@ -1,27 +1,35 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, FileText } from 'lucide-react';
 import { api } from '../services/api';
-import type { Template, FieldDefinition } from '../types';
 import { ErrorMessage, EmptyState, CardSkeleton } from '../components/Loading';
 import toast from 'react-hot-toast';
 
-/**
- * Templates Management Page
- *
- * Provides a user-friendly interface for managing document extraction templates.
- * Features:
- * - View all templates with usage statistics
- * - Create new templates with custom fields
- * - Edit existing templates
- * - Delete templates
- * - Field customization (name, type, required, validation)
- * - Category management (invoice, mortgage, bank_statement, etc.)
- */
+interface TemplateField {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+}
+
+interface EditableTemplate {
+  id: number | string;
+  name: string;
+  template_name?: string;
+  category: string;
+  country_code: string;
+  description: string;
+  fields: TemplateField[];
+  is_active: boolean;
+  account_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export function Templates() {
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templates, setTemplates] = useState<EditableTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<EditableTemplate | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -71,7 +79,7 @@ export function Templates() {
     });
   };
 
-  const handleEditTemplate = (template: Template) => {
+  const handleEditTemplate = (template: EditableTemplate) => {
     setEditingTemplate({ ...template });
     setIsCreating(false);
   };
@@ -79,7 +87,7 @@ export function Templates() {
   const handleSaveTemplate = async () => {
     if (!editingTemplate) return;
 
-    if (!editingTemplate.name.trim()) {
+    if (!editingTemplate.name?.trim()) {
       toast.error('Please enter a template name');
       return;
     }
@@ -92,10 +100,10 @@ export function Templates() {
     try {
       setSaving(true);
       if (isCreating) {
-        await api.createTemplate(editingTemplate);
+        await api.createTemplate(editingTemplate as any);
         toast.success('Template created successfully');
       } else {
-        await api.updateTemplate(editingTemplate.id, editingTemplate);
+        await api.updateTemplate(String(editingTemplate.id), editingTemplate as any);
         toast.success('Template updated successfully');
       }
       setEditingTemplate(null);
@@ -110,11 +118,11 @@ export function Templates() {
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string) => {
+  const handleDeleteTemplate = async (templateId: number | string) => {
     if (!confirm('Are you sure you want to delete this template?')) return;
 
     try {
-      await api.deleteTemplate(templateId);
+      await api.deleteTemplate(String(templateId));
       toast.success('Template deleted successfully');
       await loadTemplates();
     } catch (err: any) {

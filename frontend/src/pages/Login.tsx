@@ -15,8 +15,8 @@ export default function Login() {
 
     try {
       const data = await api.createAccount({ name: email.split('@')[0], email });
-      localStorage.setItem('aivision_token', data.api_key);
-      api.setToken(data.api_key);
+      localStorage.setItem('aivision_token', data.api_token);
+      api.setToken(data.api_token);
       toast.success('Logged in successfully');
       navigate('/dashboard');
     } catch {

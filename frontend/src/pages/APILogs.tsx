@@ -28,6 +28,8 @@ interface APILog {
   response_time_ms: number | null;
   ip_address: string | null;
   timestamp: string;
+  request_data?: Record<string, unknown>;
+  response_data?: Record<string, unknown>;
 }
 
 export function APILogs() {
