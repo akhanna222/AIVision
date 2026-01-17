@@ -21,17 +21,13 @@ import { api } from '../services/api';
  */
 
 interface APILog {
-  id: string;
-  account_id: string;
+  id: number;
   endpoint: string;
   method: string;
   status_code: number;
-  response_time_ms: number;
-  request_data?: Record<string, unknown>;
-  response_data?: Record<string, unknown>;
-  ip_address?: string;
-  user_agent?: string;
-  created_at: string;
+  response_time_ms: number | null;
+  ip_address: string | null;
+  timestamp: string;
 }
 
 export function APILogs() {
@@ -52,11 +48,11 @@ export function APILogs() {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      // Note: Logs API endpoint not yet implemented
-      // Placeholder until backend /api/v1/logs endpoint is added
-      setLogs([]);
+      const response = await api.getAPILogs({ days: 7, limit: 100 });
+      setLogs(response.logs || []);
     } catch (error) {
       console.error('Failed to load logs:', error);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -83,7 +79,7 @@ export function APILogs() {
   const exportToCSV = () => {
     const headers = ['Timestamp', 'Method', 'Endpoint', 'Status', 'Response Time (ms)'];
     const rows = filteredLogs.map((log) => [
-      new Date(log.created_at).toISOString(),
+      new Date(log.timestamp).toISOString(),
       log.method,
       log.endpoint,
       log.status_code,
@@ -226,7 +222,7 @@ export function APILogs() {
               {filteredLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(log.created_at).toLocaleString()}
+                    {new Date(log.timestamp).toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -316,7 +312,7 @@ export function APILogs() {
                       Timestamp
                     </label>
                     <div className="text-sm text-gray-900">
-                      {new Date(selectedLog.created_at).toLocaleString()}
+                      {new Date(selectedLog.timestamp).toLocaleString()}
                     </div>
                   </div>
                   <div>

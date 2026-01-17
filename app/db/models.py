@@ -50,6 +50,8 @@ class Account(Base):
     extractions = relationship("Extraction", back_populates="account", cascade="all, delete-orphan")
     countries = relationship("Country", back_populates="account", cascade="all, delete-orphan")
     document_tags = relationship("DocumentTag", back_populates="account", cascade="all, delete-orphan")
+    categories = relationship("Category", backref="account", cascade="all, delete-orphan")
+    webhooks = relationship("Webhook", backref="account", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Account(id={self.id}, name={self.name}, plan={self.plan})>"
@@ -135,7 +137,7 @@ class Template(Base):
 
 
 class DocumentTag(Base):
-    """Auto-generated document tags for classification"""
+    """Document tags for classification"""
     __tablename__ = "document_tags"
     __table_args__ = (
         UniqueConstraint('account_id', 'tag_name', name='uix_account_tag_name'),
@@ -146,11 +148,10 @@ class DocumentTag(Base):
 
     # Tag details
     tag_name = Column(String(100), nullable=False, index=True)
-    tag_category = Column(String(50), nullable=True)  # document_type, entity, date_range, etc.
+    tag_category = Column(String(50), nullable=True)
+    color = Column(String(20), default="blue")
     confidence_threshold = Column(Float, default=0.7)
-
-    # Auto-tagging rules
-    auto_tag_rules = Column(JSON, nullable=True)  # Rules for automatic tagging
+    auto_tag_rules = Column(JSON, nullable=True)
 
     # Statistics
     usage_count = Column(Integer, default=0)
@@ -162,7 +163,60 @@ class DocumentTag(Base):
     account = relationship("Account", back_populates="document_tags")
 
     def __repr__(self):
-        return f"<DocumentTag(name={self.tag_name}, category={self.tag_category})>"
+        return f"<DocumentTag(name={self.tag_name})>"
+
+
+class Category(Base):
+    """Custom document categories"""
+    __tablename__ = "categories"
+    __table_args__ = (
+        UniqueConstraint('account_id', 'name', name='uix_account_category_name'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+
+    name = Column(String(100), nullable=False, index=True)
+    display_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String(10), default="📁")
+    color = Column(String(20), default="blue")
+    is_default = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+
+    # Statistics
+    template_count = Column(Integer, default=0)
+    extraction_count = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<Category(name={self.name})>"
+
+
+class Webhook(Base):
+    """Webhook configurations"""
+    __tablename__ = "webhooks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+
+    url = Column(String(500), nullable=False)
+    events = Column(JSON, default=list)  # ["extraction.completed", "extraction.failed"]
+    secret = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
+
+    # Statistics
+    last_triggered = Column(DateTime(timezone=True), nullable=True)
+    success_count = Column(Integer, default=0)
+    failure_count = Column(Integer, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<Webhook(url={self.url}, active={self.is_active})>"
 
 
 class Extraction(Base):

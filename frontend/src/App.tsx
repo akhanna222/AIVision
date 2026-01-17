@@ -36,10 +36,10 @@ const queryClient = new QueryClient({
  * Authenticated layout wrapper
  */
 function AuthenticatedRoute({ children }: { children: React.ReactNode }) {
-  // TODO: Add authentication check
-  // const isAuthenticated = useAuth();
-  // if (!isAuthenticated) return <Navigate to="/login" replace />;
-
+  const isAuthenticated = localStorage.getItem('aivision_token');
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
   return <Layout>{children}</Layout>;
 }
 
