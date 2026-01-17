@@ -72,22 +72,32 @@ log "Dependencies installed"
 
 # 4. PostgreSQL
 step "4/7" "PostgreSQL"
-PG_VERSION=$(ls /etc/postgresql/ 2>/dev/null | head -1)
-[ -z "$PG_VERSION" ] && PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1)
-[ -z "$PG_VERSION" ] && PG_VERSION="16"
-warn "Using PostgreSQL $PG_VERSION"
 
-# Check if cluster exists, create if not
-if [ ! -d "/var/lib/postgresql/$PG_VERSION/main" ]; then
-    warn "Creating cluster..."
-    sudo pg_createcluster $PG_VERSION main --start
+# Check if PostgreSQL is already running and working
+if sudo -u postgres psql -c "SELECT 1" &>/dev/null; then
+    log "PostgreSQL already running"
+else
+    PG_VERSION=$(ls /etc/postgresql/ 2>/dev/null | head -1)
+    [ -z "$PG_VERSION" ] && PG_VERSION="16"
+    warn "Starting PostgreSQL $PG_VERSION..."
+
+    # Kill anything on port 5432
+    sudo lsof -ti :5432 | xargs -r sudo kill -9 2>/dev/null || true
+    sleep 2
+
+    # Create cluster if missing
+    [ ! -d "/var/lib/postgresql/$PG_VERSION/main" ] && sudo pg_createcluster $PG_VERSION main
+
+    # Start service
+    sudo systemctl daemon-reload
+    sudo systemctl start postgresql@$PG_VERSION-main || {
+        warn "Retry after cleanup..."
+        sudo pkill -9 postgres 2>/dev/null || true
+        sleep 3
+        sudo systemctl start postgresql@$PG_VERSION-main
+    }
+    wait_for_postgres
 fi
-
-# Start the versioned service (not the wrapper)
-sudo systemctl daemon-reload
-sudo systemctl enable postgresql@$PG_VERSION-main
-sudo systemctl start postgresql@$PG_VERSION-main 2>/dev/null || sudo systemctl restart postgresql@$PG_VERSION-main
-wait_for_postgres
 sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
 sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
 sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
