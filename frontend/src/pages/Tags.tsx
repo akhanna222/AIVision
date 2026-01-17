@@ -15,10 +15,11 @@ import { api } from '../services/api';
  */
 
 interface DocumentTag {
-  id: string;
-  tag: string;
-  color?: string;
-  usage_count?: number;
+  id: number;
+  tag_name: string;
+  color: string;
+  tag_category?: string;
+  usage_count: number;
   created_at: string;
 }
 
@@ -48,16 +49,8 @@ export function Tags() {
   const loadTags = async () => {
     try {
       setLoading(true);
-      // In a real implementation, we'd fetch from a dedicated tags endpoint
-      // For now, we'll simulate with sample data
-      const sampleTags: DocumentTag[] = [
-        { id: '1', tag: 'urgent', color: 'red', usage_count: 45, created_at: new Date().toISOString() },
-        { id: '2', tag: 'financial', color: 'blue', usage_count: 123, created_at: new Date().toISOString() },
-        { id: '3', tag: 'personal', color: 'green', usage_count: 67, created_at: new Date().toISOString() },
-        { id: '4', tag: 'tax-2024', color: 'yellow', usage_count: 34, created_at: new Date().toISOString() },
-        { id: '5', tag: 'mortgage', color: 'purple', usage_count: 89, created_at: new Date().toISOString() },
-      ];
-      setTags(sampleTags);
+      const data = await api.listTags();
+      setTags(data);
     } catch (error) {
       console.error('Failed to load tags:', error);
     } finally {
@@ -69,16 +62,11 @@ export function Tags() {
     if (!newTag.trim()) return;
 
     try {
-      // In a real implementation, we'd call the API
-      const tag: DocumentTag = {
-        id: Date.now().toString(),
-        tag: newTag.trim().toLowerCase(),
+      const newTagData = await api.createTag({
+        tag_name: newTag.trim().toLowerCase(),
         color: newTagColor.name.toLowerCase(),
-        usage_count: 0,
-        created_at: new Date().toISOString(),
-      };
-
-      setTags([...tags, tag]);
+      });
+      setTags([...tags, newTagData]);
       setNewTag('');
       setShowAddTag(false);
     } catch (error) {
@@ -87,11 +75,11 @@ export function Tags() {
     }
   };
 
-  const handleDeleteTag = async (tagId: string) => {
+  const handleDeleteTag = async (tagId: number) => {
     const tag = tags.find((t) => t.id === tagId);
     if (!tag) return;
 
-    if (tag.usage_count && tag.usage_count > 0) {
+    if (tag.usage_count > 0) {
       const confirmed = confirm(
         `This tag is used in ${tag.usage_count} documents. Are you sure you want to delete it?`
       );
@@ -99,6 +87,7 @@ export function Tags() {
     }
 
     try {
+      await api.deleteTag(tagId);
       setTags(tags.filter((t) => t.id !== tagId));
     } catch (error) {
       console.error('Failed to delete tag:', error);
@@ -114,12 +103,12 @@ export function Tags() {
   };
 
   const filteredTags = tags
-    .filter((tag) => tag.tag.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0));
+    .filter((tag) => tag.tag_name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => b.usage_count - a.usage_count);
 
-  const totalUsage = tags.reduce((sum, tag) => sum + (tag.usage_count || 0), 0);
+  const totalUsage = tags.reduce((sum, tag) => sum + tag.usage_count, 0);
   const topTags = [...tags]
-    .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+    .sort((a, b) => b.usage_count - a.usage_count)
     .slice(0, 5);
 
   return (
@@ -165,7 +154,7 @@ export function Tags() {
                     tag.color
                   )}`}
                 >
-                  {tag.tag} ({tag.usage_count})
+                  {tag.tag_name} ({tag.usage_count})
                 </span>
               ))}
             </div>
@@ -276,7 +265,7 @@ export function Tags() {
                   tag.color
                 )}`}
               >
-                {tag.tag}
+                {tag.tag_name}
               </span>
               <button
                 onClick={() => handleDeleteTag(tag.id)}
@@ -291,7 +280,7 @@ export function Tags() {
               <div>
                 <span className="font-medium">Used in:</span>
                 <span className="ml-2 text-gray-900 font-semibold">
-                  {tag.usage_count || 0} documents
+                  {tag.usage_count} documents
                 </span>
               </div>
               <div className="text-xs text-gray-500">
@@ -299,7 +288,7 @@ export function Tags() {
               </div>
             </div>
 
-            {tag.usage_count && tag.usage_count > 0 && (
+            {tag.usage_count > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
                   View Documents →

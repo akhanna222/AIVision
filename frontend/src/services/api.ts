@@ -313,8 +313,81 @@ class APIService {
     method?: string;
     status_code?: number;
   }) {
-    const response = await this.client.get('/api/v1/analytics/logs', { params });
+    const response = await this.client.get('/api/v1/logs', { params });
     return response.data;
+  }
+
+  // ============================================================================
+  // TAGS
+  // ============================================================================
+
+  async listTags(category?: string) {
+    const response = await this.client.get('/api/v1/tags', {
+      params: category ? { category } : undefined,
+    });
+    return response.data;
+  }
+
+  async createTag(data: { tag_name: string; color?: string; tag_category?: string }) {
+    const response = await this.client.post('/api/v1/tags', data);
+    return response.data;
+  }
+
+  async updateTag(tagId: number, data: { tag_name?: string; color?: string; tag_category?: string }) {
+    const response = await this.client.put(`/api/v1/tags/${tagId}`, data);
+    return response.data;
+  }
+
+  async deleteTag(tagId: number) {
+    const response = await this.client.delete(`/api/v1/tags/${tagId}`);
+    return response.data;
+  }
+
+  // ============================================================================
+  // CATEGORIES
+  // ============================================================================
+
+  async listCategories() {
+    const response = await this.client.get('/api/v1/categories');
+    return response.data;
+  }
+
+  async createCategory(data: {
+    name: string;
+    display_name: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+  }) {
+    const response = await this.client.post('/api/v1/categories', data);
+    return response.data;
+  }
+
+  async updateCategory(categoryId: number, data: {
+    display_name?: string;
+    description?: string;
+    icon?: string;
+    color?: string;
+  }) {
+    const response = await this.client.put(`/api/v1/categories/${categoryId}`, data);
+    return response.data;
+  }
+
+  async deleteCategory(categoryId: number) {
+    const response = await this.client.delete(`/api/v1/categories/${categoryId}`);
+    return response.data;
+  }
+
+  // ============================================================================
+  // AUTH HELPERS
+  // ============================================================================
+
+  isAuthenticated(): boolean {
+    return !!this.token;
+  }
+
+  getToken(): string | null {
+    return this.token;
   }
 
   // ============================================================================

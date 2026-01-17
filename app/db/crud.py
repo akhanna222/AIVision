@@ -8,7 +8,7 @@ from sqlalchemy import func, and_, desc
 from datetime import datetime, timedelta
 
 from app.db.models import (
-    Account, Country, Template, DocumentTag,
+    Account, Country, Template, DocumentTag, Category, Webhook,
     Extraction, UsageLog, APILog, DEFAULT_COUNTRIES
 )
 
@@ -264,6 +264,7 @@ def create_document_tag(
     db: Session,
     account_id: int,
     tag_name: str,
+    color: str = "blue",
     tag_category: Optional[str] = None,
     auto_tag_rules: Optional[Dict] = None
 ) -> DocumentTag:
@@ -271,6 +272,7 @@ def create_document_tag(
     tag = DocumentTag(
         account_id=account_id,
         tag_name=tag_name,
+        color=color,
         tag_category=tag_category,
         auto_tag_rules=auto_tag_rules
     )
@@ -292,11 +294,234 @@ def get_document_tags(
     return query.order_by(desc(DocumentTag.usage_count)).all()
 
 
+def get_document_tag_by_id(db: Session, account_id: int, tag_id: int) -> Optional[DocumentTag]:
+    """Get tag by ID"""
+    return db.query(DocumentTag).filter(
+        and_(DocumentTag.account_id == account_id, DocumentTag.id == tag_id)
+    ).first()
+
+
+def update_document_tag(
+    db: Session,
+    account_id: int,
+    tag_id: int,
+    updates: Dict[str, Any]
+) -> Optional[DocumentTag]:
+    """Update document tag"""
+    tag = get_document_tag_by_id(db, account_id, tag_id)
+    if tag:
+        for key, value in updates.items():
+            if hasattr(tag, key):
+                setattr(tag, key, value)
+        db.commit()
+        db.refresh(tag)
+    return tag
+
+
+def delete_document_tag(db: Session, account_id: int, tag_id: int) -> bool:
+    """Delete document tag"""
+    tag = get_document_tag_by_id(db, account_id, tag_id)
+    if tag:
+        db.delete(tag)
+        db.commit()
+        return True
+    return False
+
+
 def increment_tag_usage(db: Session, tag_id: int):
     """Increment tag usage counter"""
     tag = db.query(DocumentTag).filter(DocumentTag.id == tag_id).first()
     if tag:
         tag.usage_count += 1
+        db.commit()
+
+
+# ============================================================================
+# CATEGORY OPERATIONS
+# ============================================================================
+
+DEFAULT_CATEGORIES = [
+    {"name": "invoice", "display_name": "Invoice", "description": "Commercial invoices", "icon": "📄", "color": "blue", "is_default": True},
+    {"name": "receipt", "display_name": "Receipt", "description": "Purchase receipts", "icon": "🧾", "color": "green", "is_default": True},
+    {"name": "bank_statement", "display_name": "Bank Statement", "description": "Bank statements", "icon": "🏦", "color": "indigo", "is_default": True},
+    {"name": "mortgage_application", "display_name": "Mortgage Application", "description": "Mortgage forms", "icon": "🏠", "color": "purple", "is_default": True},
+    {"name": "passport", "display_name": "Passport", "description": "Travel documents", "icon": "🛂", "color": "red", "is_default": True},
+    {"name": "drivers_license", "display_name": "Driver's License", "description": "ID cards", "icon": "🪪", "color": "yellow", "is_default": True},
+    {"name": "utility_bill", "display_name": "Utility Bill", "description": "Utility bills", "icon": "⚡", "color": "orange", "is_default": True},
+    {"name": "tax_document", "display_name": "Tax Document", "description": "Tax forms", "icon": "💼", "color": "pink", "is_default": True},
+]
+
+
+def init_default_categories(db: Session, account_id: int):
+    """Initialize default categories for account"""
+    for cat_data in DEFAULT_CATEGORIES:
+        existing = db.query(Category).filter(
+            and_(Category.account_id == account_id, Category.name == cat_data["name"])
+        ).first()
+        if not existing:
+            category = Category(account_id=account_id, **cat_data)
+            db.add(category)
+    db.commit()
+
+
+def create_category(
+    db: Session,
+    account_id: int,
+    name: str,
+    display_name: str,
+    description: Optional[str] = None,
+    icon: str = "📁",
+    color: str = "blue"
+) -> Category:
+    """Create custom category"""
+    category = Category(
+        account_id=account_id,
+        name=name.lower().replace(" ", "_"),
+        display_name=display_name,
+        description=description,
+        icon=icon,
+        color=color,
+        is_default=False
+    )
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
+
+
+def get_categories(
+    db: Session,
+    account_id: int,
+    active_only: bool = True
+) -> List[Category]:
+    """Get categories for account"""
+    query = db.query(Category).filter(Category.account_id == account_id)
+    if active_only:
+        query = query.filter(Category.is_active == True)
+    return query.order_by(desc(Category.extraction_count)).all()
+
+
+def get_category_by_id(db: Session, account_id: int, category_id: int) -> Optional[Category]:
+    """Get category by ID"""
+    return db.query(Category).filter(
+        and_(Category.account_id == account_id, Category.id == category_id)
+    ).first()
+
+
+def update_category(
+    db: Session,
+    account_id: int,
+    category_id: int,
+    updates: Dict[str, Any]
+) -> Optional[Category]:
+    """Update category"""
+    category = get_category_by_id(db, account_id, category_id)
+    if category and not category.is_default:
+        for key, value in updates.items():
+            if hasattr(category, key) and key not in ["id", "account_id", "is_default"]:
+                setattr(category, key, value)
+        db.commit()
+        db.refresh(category)
+    return category
+
+
+def delete_category(db: Session, account_id: int, category_id: int) -> bool:
+    """Delete category (only custom ones)"""
+    category = get_category_by_id(db, account_id, category_id)
+    if category and not category.is_default:
+        db.delete(category)
+        db.commit()
+        return True
+    return False
+
+
+def increment_category_usage(db: Session, account_id: int, category_name: str):
+    """Increment category extraction count"""
+    category = db.query(Category).filter(
+        and_(Category.account_id == account_id, Category.name == category_name)
+    ).first()
+    if category:
+        category.extraction_count += 1
+        db.commit()
+
+
+# ============================================================================
+# WEBHOOK OPERATIONS
+# ============================================================================
+
+def create_webhook(
+    db: Session,
+    account_id: int,
+    url: str,
+    events: List[str],
+    secret: Optional[str] = None,
+    is_active: bool = True
+) -> Webhook:
+    """Create webhook"""
+    webhook = Webhook(
+        account_id=account_id,
+        url=url,
+        events=events,
+        secret=secret,
+        is_active=is_active
+    )
+    db.add(webhook)
+    db.commit()
+    db.refresh(webhook)
+    return webhook
+
+
+def get_webhooks(db: Session, account_id: int, active_only: bool = False) -> List[Webhook]:
+    """Get webhooks for account"""
+    query = db.query(Webhook).filter(Webhook.account_id == account_id)
+    if active_only:
+        query = query.filter(Webhook.is_active == True)
+    return query.all()
+
+
+def get_webhook_by_id(db: Session, account_id: int, webhook_id: int) -> Optional[Webhook]:
+    """Get webhook by ID"""
+    return db.query(Webhook).filter(
+        and_(Webhook.account_id == account_id, Webhook.id == webhook_id)
+    ).first()
+
+
+def update_webhook(
+    db: Session,
+    account_id: int,
+    webhook_id: int,
+    updates: Dict[str, Any]
+) -> Optional[Webhook]:
+    """Update webhook"""
+    webhook = get_webhook_by_id(db, account_id, webhook_id)
+    if webhook:
+        for key, value in updates.items():
+            if hasattr(webhook, key) and key not in ["id", "account_id"]:
+                setattr(webhook, key, value)
+        db.commit()
+        db.refresh(webhook)
+    return webhook
+
+
+def delete_webhook(db: Session, account_id: int, webhook_id: int) -> bool:
+    """Delete webhook"""
+    webhook = get_webhook_by_id(db, account_id, webhook_id)
+    if webhook:
+        db.delete(webhook)
+        db.commit()
+        return True
+    return False
+
+
+def record_webhook_result(db: Session, webhook_id: int, success: bool):
+    """Record webhook delivery result"""
+    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
+    if webhook:
+        webhook.last_triggered = datetime.utcnow()
+        if success:
+            webhook.success_count += 1
+        else:
+            webhook.failure_count += 1
         db.commit()
 
 
@@ -515,7 +740,7 @@ def get_api_logs(
     query = db.query(APILog).filter(
         and_(
             APILog.account_id == account_id,
-            APILog.created_at >= since_date
+            APILog.timestamp >= since_date
         )
     )
 
@@ -525,4 +750,4 @@ def get_api_logs(
     if status_code:
         query = query.filter(APILog.status_code == status_code)
 
-    return query.order_by(desc(APILog.created_at)).limit(limit).offset(offset).all()
+    return query.order_by(desc(APILog.timestamp)).limit(limit).offset(offset).all()

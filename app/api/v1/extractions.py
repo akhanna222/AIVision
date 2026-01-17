@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.db import crud
 from app.core.auth import get_current_account, can_use_model
 from app.core.extraction_service import ExtractionService
+from app.core.pricing import calculate_extraction_cost
 from app.services.multi_model_extractor import MultiModelExtractor, ModelStrategy
 from app.config import settings, get_api_keys
 from app.db.models import Account
@@ -173,15 +174,19 @@ async def extract_document(
         # Update account usage
         crud.update_account_usage(db, account.id, extractions=1)
 
-        # Log usage
+        # Calculate and log usage
+        cost_usd, tokens_used = calculate_extraction_cost(
+            result.processing.vision_model_used.value,
+            result.total_pages
+        )
         crud.log_usage(
             db,
             account_id=account.id,
             operation="extract",
             vision_model=result.processing.vision_model_used.value,
             pages_processed=result.total_pages,
-            tokens_used=0,  # TODO: Get from model response
-            cost_usd=result.processing.cost_usd,
+            tokens_used=tokens_used,
+            cost_usd=cost_usd,
             success=True,
             processing_time_ms=result.processing.processing_time_ms,
             extraction_id=extraction_id
@@ -429,14 +434,16 @@ async def extract_document_multi_model(
         # Log usage for each model tried
         for attempt in result.model_attempts:
             if attempt.success:
+                model_name = attempt.model.value if hasattr(attempt.model, 'value') else str(attempt.model)
+                cost_usd, tokens_used = calculate_extraction_cost(model_name, 1)
                 crud.log_usage(
                     db,
                     account_id=account.id,
                     operation="extract_multi_model",
-                    vision_model=attempt.model.value if hasattr(attempt.model, 'value') else str(attempt.model),
+                    vision_model=model_name,
                     pages_processed=1,
-                    tokens_used=0,
-                    cost_usd=0.0,  # TODO: Calculate actual cost
+                    tokens_used=tokens_used,
+                    cost_usd=cost_usd,
                     success=True,
                     processing_time_ms=attempt.extraction_time_ms,
                     extraction_id=extraction_id

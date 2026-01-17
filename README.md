@@ -93,9 +93,22 @@ app/
 frontend/          # React + TypeScript UI
 ```
 
-## Deployment
+## EC2 Deployment (One Command)
 
-See `AWS_EC2_DEPLOYMENT.md` for production deployment guide.
+```bash
+# On a fresh Ubuntu EC2 instance:
+chmod +x deploy.sh
+./deploy.sh
+```
+
+The script will:
+- Prompt for API keys (Gemini, OpenAI, Anthropic)
+- Install all dependencies (Python, Node.js, PostgreSQL, Nginx)
+- Configure the database
+- Build and deploy the application
+- Create systemd services for auto-restart
+
+See `AWS_EC2_DEPLOYMENT.md` for manual deployment steps.
 
 ## License
 

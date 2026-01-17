@@ -1,120 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, FolderOpen } from 'lucide-react';
-
-/**
- * Categories Management Page
- *
- * Allows users to customize document categories for classification:
- * - View all available categories
- * - Create custom categories
- * - Edit category names and descriptions
- * - Set category-specific extraction rules
- * - Delete unused categories
- * - View category usage statistics
- */
+import { api } from '../services/api';
 
 interface Category {
-  id: string;
+  id: number;
   name: string;
-  displayName: string;
-  description: string;
-  icon?: string;
+  display_name: string;
+  description: string | null;
+  icon: string;
   color: string;
-  templateCount: number;
-  extractionCount: number;
-  isDefault: boolean;
+  template_count: number;
+  extraction_count: number;
+  is_default: boolean;
+  created_at: string;
 }
-
-const DEFAULT_CATEGORIES: Category[] = [
-  {
-    id: 'invoice',
-    name: 'invoice',
-    displayName: 'Invoice',
-    description: 'Commercial invoices and billing documents',
-    icon: '📄',
-    color: 'blue',
-    templateCount: 3,
-    extractionCount: 145,
-    isDefault: true,
-  },
-  {
-    id: 'receipt',
-    name: 'receipt',
-    displayName: 'Receipt',
-    description: 'Purchase receipts and transaction records',
-    icon: '🧾',
-    color: 'green',
-    templateCount: 2,
-    extractionCount: 89,
-    isDefault: true,
-  },
-  {
-    id: 'mortgage_application',
-    name: 'mortgage_application',
-    displayName: 'Mortgage Application',
-    description: 'Mortgage and loan application forms',
-    icon: '🏠',
-    color: 'purple',
-    templateCount: 4,
-    extractionCount: 56,
-    isDefault: true,
-  },
-  {
-    id: 'bank_statement',
-    name: 'bank_statement',
-    displayName: 'Bank Statement',
-    description: 'Bank account statements with transactions',
-    icon: '🏦',
-    color: 'indigo',
-    templateCount: 3,
-    extractionCount: 123,
-    isDefault: true,
-  },
-  {
-    id: 'passport',
-    name: 'passport',
-    displayName: 'Passport',
-    description: 'Passport and travel documents',
-    icon: '🛂',
-    color: 'red',
-    templateCount: 1,
-    extractionCount: 34,
-    isDefault: true,
-  },
-  {
-    id: 'drivers_license',
-    name: 'drivers_license',
-    displayName: "Driver's License",
-    description: "Driver's licenses and ID cards",
-    icon: '🪪',
-    color: 'yellow',
-    templateCount: 1,
-    extractionCount: 45,
-    isDefault: true,
-  },
-  {
-    id: 'utility_bill',
-    name: 'utility_bill',
-    displayName: 'Utility Bill',
-    description: 'Electricity, gas, water, and internet bills',
-    icon: '⚡',
-    color: 'orange',
-    templateCount: 2,
-    extractionCount: 67,
-    isDefault: true,
-  },
-  {
-    id: 'tax_document',
-    name: 'tax_document',
-    displayName: 'Tax Document',
-    description: 'Tax forms and related documents',
-    icon: '💼',
-    color: 'pink',
-    templateCount: 2,
-    extractionCount: 78,
-    isDefault: true,
-  },
-];
 
 const COLORS = [
   { name: 'Blue', value: 'blue', class: 'bg-blue-100 text-blue-800 border-blue-200' },
@@ -127,79 +26,122 @@ const COLORS = [
   { name: 'Pink', value: 'pink', class: 'bg-pink-100 text-pink-800 border-pink-200' },
 ];
 
+interface EditingCategory {
+  id?: number;
+  name: string;
+  display_name: string;
+  description: string;
+  icon: string;
+  color: string;
+}
+
 export function Categories() {
-  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingCategory, setEditingCategory] = useState<EditingCategory | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      const data = await api.listCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCreateCategory = () => {
     setIsCreating(true);
     setEditingCategory({
-      id: '',
       name: '',
-      displayName: '',
+      display_name: '',
       description: '',
       icon: '📁',
       color: 'blue',
-      templateCount: 0,
-      extractionCount: 0,
-      isDefault: false,
     });
   };
 
   const handleEditCategory = (category: Category) => {
-    if (category.isDefault) {
-      alert('Default categories cannot be edited. Create a custom category instead.');
+    if (category.is_default) {
+      alert('Default categories cannot be edited.');
       return;
     }
-    setEditingCategory({ ...category });
+    setEditingCategory({
+      id: category.id,
+      name: category.name,
+      display_name: category.display_name,
+      description: category.description || '',
+      icon: category.icon,
+      color: category.color,
+    });
     setIsCreating(false);
   };
 
-  const handleSaveCategory = () => {
+  const handleSaveCategory = async () => {
     if (!editingCategory) return;
 
-    if (!editingCategory.displayName.trim()) {
+    if (!editingCategory.display_name.trim()) {
       alert('Please enter a category name');
       return;
     }
 
-    if (isCreating) {
-      const newCategory = {
-        ...editingCategory,
-        id: editingCategory.displayName.toLowerCase().replace(/\s+/g, '_'),
-        name: editingCategory.displayName.toLowerCase().replace(/\s+/g, '_'),
-      };
-      setCategories([...categories, newCategory]);
-    } else {
-      setCategories(
-        categories.map((cat) =>
-          cat.id === editingCategory.id ? editingCategory : cat
-        )
-      );
+    try {
+      if (isCreating) {
+        const newCategory = await api.createCategory({
+          name: editingCategory.display_name.toLowerCase().replace(/\s+/g, '_'),
+          display_name: editingCategory.display_name,
+          description: editingCategory.description || undefined,
+          icon: editingCategory.icon,
+          color: editingCategory.color,
+        });
+        setCategories([...categories, newCategory]);
+      } else if (editingCategory.id) {
+        const updated = await api.updateCategory(editingCategory.id, {
+          display_name: editingCategory.display_name,
+          description: editingCategory.description || undefined,
+          icon: editingCategory.icon,
+          color: editingCategory.color,
+        });
+        setCategories(categories.map((cat) => (cat.id === updated.id ? updated : cat)));
+      }
+      setEditingCategory(null);
+      setIsCreating(false);
+    } catch (error) {
+      console.error('Failed to save category:', error);
+      alert('Failed to save category. Please try again.');
     }
-
-    setEditingCategory(null);
-    setIsCreating(false);
   };
 
-  const handleDeleteCategory = (categoryId: string) => {
+  const handleDeleteCategory = async (categoryId: number) => {
     const category = categories.find((c) => c.id === categoryId);
     if (!category) return;
 
-    if (category.isDefault) {
+    if (category.is_default) {
       alert('Default categories cannot be deleted.');
       return;
     }
 
-    if (category.templateCount > 0 || category.extractionCount > 0) {
+    if (category.template_count > 0 || category.extraction_count > 0) {
       const confirmed = confirm(
-        `This category has ${category.templateCount} templates and ${category.extractionCount} extractions. Are you sure you want to delete it?`
+        `This category has ${category.template_count} templates and ${category.extraction_count} extractions. Are you sure you want to delete it?`
       );
       if (!confirmed) return;
     }
 
-    setCategories(categories.filter((c) => c.id !== categoryId));
+    try {
+      await api.deleteCategory(categoryId);
+      setCategories(categories.filter((c) => c.id !== categoryId));
+    } catch (error) {
+      console.error('Failed to delete category:', error);
+      alert('Failed to delete category. Please try again.');
+    }
   };
 
   const getColorClass = (colorValue: string) => {
@@ -207,11 +149,16 @@ export function Categories() {
     return color?.class || COLORS[0].class;
   };
 
-  const totalTemplates = categories.reduce((sum, cat) => sum + cat.templateCount, 0);
-  const totalExtractions = categories.reduce(
-    (sum, cat) => sum + cat.extractionCount,
-    0
-  );
+  const totalTemplates = categories.reduce((sum, cat) => sum + cat.template_count, 0);
+  const totalExtractions = categories.reduce((sum, cat) => sum + cat.extraction_count, 0);
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="text-center text-gray-500">Loading categories...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -219,9 +166,7 @@ export function Categories() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Categories</h1>
-          <p className="mt-2 text-gray-600">
-            Customize document categories for better organization
-          </p>
+          <p className="mt-2 text-gray-600">Customize document categories for better organization</p>
         </div>
         <button
           onClick={handleCreateCategory}
@@ -243,7 +188,6 @@ export function Categories() {
             </div>
           </div>
         </div>
-
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="w-8 h-8 text-2xl mr-3">📋</div>
@@ -253,7 +197,6 @@ export function Categories() {
             </div>
           </div>
         </div>
-
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="w-8 h-8 text-2xl mr-3">🔍</div>
@@ -275,10 +218,7 @@ export function Categories() {
                   {isCreating ? 'Create Category' : 'Edit Category'}
                 </h2>
                 <button
-                  onClick={() => {
-                    setEditingCategory(null);
-                    setIsCreating(false);
-                  }}
+                  onClick={() => { setEditingCategory(null); setIsCreating(false); }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-6 h-6" />
@@ -287,91 +227,59 @@ export function Categories() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category Name *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category Name *</label>
                   <input
                     type="text"
-                    value={editingCategory.displayName}
-                    onChange={(e) =>
-                      setEditingCategory({
-                        ...editingCategory,
-                        displayName: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={editingCategory.display_name}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, display_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g., Purchase Order"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                   <textarea
                     value={editingCategory.description}
-                    onChange={(e) =>
-                      setEditingCategory({
-                        ...editingCategory,
-                        description: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     rows={3}
-                    placeholder="Brief description of this category..."
+                    placeholder="Brief description..."
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Icon (Emoji)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Icon (Emoji)</label>
                     <input
                       type="text"
-                      value={editingCategory.icon || ''}
-                      onChange={(e) =>
-                        setEditingCategory({ ...editingCategory, icon: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={editingCategory.icon}
+                      onChange={(e) => setEditingCategory({ ...editingCategory, icon: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder="📁"
                       maxLength={2}
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Color
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
                     <select
                       value={editingCategory.color}
-                      onChange={(e) =>
-                        setEditingCategory({ ...editingCategory, color: e.target.value })
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
                       {COLORS.map((color) => (
-                        <option key={color.value} value={color.value}>
-                          {color.name}
-                        </option>
+                        <option key={color.value} value={color.value}>{color.name}</option>
                       ))}
                     </select>
                   </div>
                 </div>
 
-                {/* Preview */}
-                {editingCategory.displayName && (
+                {editingCategory.display_name && (
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="text-sm text-gray-600 mb-2">Preview:</div>
-                    <div
-                      className={`inline-flex items-center px-3 py-2 rounded-lg border ${getColorClass(
-                        editingCategory.color
-                      )}`}
-                    >
-                      {editingCategory.icon && (
-                        <span className="text-xl mr-2">{editingCategory.icon}</span>
-                      )}
-                      <span className="font-medium">{editingCategory.displayName}</span>
+                    <div className={`inline-flex items-center px-3 py-2 rounded-lg border ${getColorClass(editingCategory.color)}`}>
+                      <span className="text-xl mr-2">{editingCategory.icon}</span>
+                      <span className="font-medium">{editingCategory.display_name}</span>
                     </div>
                   </div>
                 )}
@@ -379,18 +287,15 @@ export function Categories() {
 
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => {
-                    setEditingCategory(null);
-                    setIsCreating(false);
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  onClick={() => { setEditingCategory(null); setIsCreating(false); }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveCategory}
-                  disabled={!editingCategory.displayName.trim()}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  disabled={!editingCategory.display_name.trim()}
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
                 >
                   <Save className="w-4 h-4 mr-2" />
                   Save Category
@@ -404,41 +309,30 @@ export function Categories() {
       {/* Categories Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {categories.map((category) => (
-          <div
-            key={category.id}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-          >
+          <div key={category.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center">
-                {category.icon && (
-                  <span className="text-3xl mr-3">{category.icon}</span>
-                )}
+                <span className="text-3xl mr-3">{category.icon}</span>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {category.displayName}
-                  </h3>
-                  <span
-                    className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded border ${getColorClass(
-                      category.color
-                    )}`}
-                  >
+                  <h3 className="text-lg font-semibold text-gray-900">{category.display_name}</h3>
+                  <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded border ${getColorClass(category.color)}`}>
                     {category.name}
                   </span>
                 </div>
               </div>
-              {!category.isDefault && (
+              {!category.is_default && (
                 <div className="flex space-x-1">
                   <button
                     onClick={() => handleEditCategory(category)}
-                    className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                    title="Edit category"
+                    className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
+                    title="Edit"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteCategory(category.id)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete category"
+                    className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                    title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -453,23 +347,17 @@ export function Categories() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Templates:</span>
-                <span className="font-semibold text-gray-900">
-                  {category.templateCount}
-                </span>
+                <span className="font-semibold text-gray-900">{category.template_count}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Extractions:</span>
-                <span className="font-semibold text-gray-900">
-                  {category.extractionCount}
-                </span>
+                <span className="font-semibold text-gray-900">{category.extraction_count}</span>
               </div>
             </div>
 
-            {category.isDefault && (
+            {category.is_default && (
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <span className="text-xs text-blue-600 font-medium">
-                  ✓ Default Category
-                </span>
+                <span className="text-xs text-blue-600 font-medium">Default Category</span>
               </div>
             )}
           </div>
