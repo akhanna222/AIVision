@@ -143,22 +143,24 @@ step "4/8" "Configuring PostgreSQL"
 sudo rm -f /var/run/postgresql/.s.PGSQL.* 2>/dev/null || true
 sudo rm -f /tmp/.s.PGSQL.* 2>/dev/null || true
 
-# Find PostgreSQL version installed
-PG_VERSION=$(ls /etc/postgresql/ 2>/dev/null | sort -V | tail -1)
-if [ -z "$PG_VERSION" ]; then
-    warn "No PostgreSQL cluster found, creating one..."
-    PG_VERSION=$(psql --version | grep -oP '\d+' | head -1)
-    sudo pg_createcluster $PG_VERSION main --start || true
-fi
+# Get PostgreSQL version
+PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1)
+[ -z "$PG_VERSION" ] && PG_VERSION="16"
 
-# Ensure data directory has correct permissions
-if [ -d "/var/lib/postgresql/$PG_VERSION/main" ]; then
+# Check if cluster exists, create if not
+if [ ! -d "/var/lib/postgresql/$PG_VERSION/main" ]; then
+    warn "Creating PostgreSQL $PG_VERSION cluster..."
+    sudo pg_dropcluster $PG_VERSION main --stop 2>/dev/null || true
+    sudo pg_createcluster $PG_VERSION main --start
+else
+    # Ensure correct permissions
     sudo chown -R postgres:postgres /var/lib/postgresql/$PG_VERSION/main
     sudo chmod 700 /var/lib/postgresql/$PG_VERSION/main
 fi
 
-sudo systemctl enable postgresql
-sudo systemctl restart postgresql
+# Start the actual versioned service (not the wrapper)
+sudo systemctl enable postgresql@$PG_VERSION-main
+sudo systemctl restart postgresql@$PG_VERSION-main
 wait_for_postgres
 
 sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
