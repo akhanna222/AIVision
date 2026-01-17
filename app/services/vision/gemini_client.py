@@ -280,7 +280,7 @@ Return ONLY the JSON object, no additional text."""
                 # Delete uploaded file
                 try:
                     genai.delete_file(uploaded_file.name)
-                except:
+                except Exception:
                     pass
 
         except Exception as e:

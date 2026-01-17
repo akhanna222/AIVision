@@ -27,8 +27,8 @@ interface APILog {
   method: string;
   status_code: number;
   response_time_ms: number;
-  request_data?: any;
-  response_data?: any;
+  request_data?: Record<string, unknown>;
+  response_data?: Record<string, unknown>;
   ip_address?: string;
   user_agent?: string;
   created_at: string;
@@ -52,10 +52,8 @@ export function APILogs() {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      // Fetch logs from analytics endpoint
-      const response = await api.getAnalytics({ days: 7 });
-      // In a real implementation, we'd have a dedicated logs endpoint
-      // For now, simulate with analytics data
+      // Note: Logs API endpoint not yet implemented
+      // Placeholder until backend /api/v1/logs endpoint is added
       setLogs([]);
     } catch (error) {
       console.error('Failed to load logs:', error);

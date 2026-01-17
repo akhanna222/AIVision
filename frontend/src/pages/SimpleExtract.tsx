@@ -18,7 +18,7 @@ interface ExtractionResult {
   status: string;
   extracted_fields: Array<{
     field_name: string;
-    value: any;
+    value: string | number | boolean | null;
     confidence?: number;
     extracted_by?: string;
   }>;
