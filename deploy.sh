@@ -92,7 +92,16 @@ log "Ports cleared"
 step "3/8" "Installing dependencies"
 
 sudo apt update -qq
-sudo apt install -y -qq python3.11 python3.11-venv python3-pip \
+sudo apt install -y -qq software-properties-common
+
+# Add deadsnakes PPA for Python 3.11 (needed for Ubuntu < 23.04)
+if ! apt-cache show python3.11 &>/dev/null; then
+    warn "Adding deadsnakes PPA for Python 3.11..."
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt update -qq
+fi
+
+sudo apt install -y -qq python3.11 python3.11-venv python3.11-dev python3-pip \
     postgresql postgresql-contrib nginx git curl build-essential \
     libpq-dev poppler-utils tesseract-ocr lsof
 
