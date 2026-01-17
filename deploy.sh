@@ -72,8 +72,14 @@ log "Dependencies installed"
 
 # 4. PostgreSQL
 step "4/8" "PostgreSQL"
-sudo rm -f /var/run/postgresql/.s.PGSQL.* /tmp/.s.PGSQL.* 2>/dev/null || true
 PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1); [ -z "$PG_VERSION" ] && PG_VERSION="16"
+warn "Stopping all PostgreSQL processes..."
+sudo systemctl stop postgresql@$PG_VERSION-main 2>/dev/null || true
+sudo systemctl stop postgresql 2>/dev/null || true
+sudo pkill -9 postgres 2>/dev/null || true
+sleep 2
+kill_port 5432
+sudo rm -f /var/run/postgresql/.s.PGSQL.* /tmp/.s.PGSQL.* /var/run/postgresql/$PG_VERSION-main.* 2>/dev/null || true
 warn "Creating PostgreSQL $PG_VERSION cluster on port 5432..."
 sudo pg_dropcluster $PG_VERSION main --stop 2>/dev/null || true
 sudo rm -rf /var/lib/postgresql/$PG_VERSION/main 2>/dev/null || true
