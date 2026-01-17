@@ -13,16 +13,17 @@ interface TemplateField {
 
 interface EditableTemplate {
   id: number | string;
-  name: string;
+  name?: string;
   template_name?: string;
   category: string;
-  country_code: string;
-  description: string;
+  country_code?: string;
+  description?: string;
   fields: TemplateField[];
   is_active: boolean;
   account_id?: string;
   created_at?: string;
   updated_at?: string;
+  usage_count?: number;
 }
 
 export function Templates() {

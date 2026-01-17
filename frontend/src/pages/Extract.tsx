@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 export default function Extract() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [result, setResult] = useState<unknown>(null);
 
   const handleExtract = async () => {
     if (!file) return;
