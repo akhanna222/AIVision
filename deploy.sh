@@ -70,10 +70,23 @@ sudo apt install -y -qq python3.11 python3.11-venv python3.11-dev postgresql pos
 command -v node &>/dev/null || { curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -; sudo apt install -y nodejs; }
 log "Dependencies installed"
 
-# 4. PostgreSQL - just use the cluster apt created
+# 4. PostgreSQL
 step "4/7" "PostgreSQL"
-sudo systemctl enable postgresql
-sudo systemctl start postgresql || sudo systemctl restart postgresql
+PG_VERSION=$(ls /etc/postgresql/ 2>/dev/null | head -1)
+[ -z "$PG_VERSION" ] && PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1)
+[ -z "$PG_VERSION" ] && PG_VERSION="16"
+warn "Using PostgreSQL $PG_VERSION"
+
+# Check if cluster exists, create if not
+if [ ! -d "/var/lib/postgresql/$PG_VERSION/main" ]; then
+    warn "Creating cluster..."
+    sudo pg_createcluster $PG_VERSION main --start
+fi
+
+# Start the versioned service (not the wrapper)
+sudo systemctl daemon-reload
+sudo systemctl enable postgresql@$PG_VERSION-main
+sudo systemctl start postgresql@$PG_VERSION-main 2>/dev/null || sudo systemctl restart postgresql@$PG_VERSION-main
 wait_for_postgres
 sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
 sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
