@@ -30,6 +30,22 @@ kill_port() {
     fi
 }
 
+# Wait for PostgreSQL to be ready
+wait_for_postgres() {
+    local max_attempts=30
+    local attempt=1
+    warn "Waiting for PostgreSQL to be ready..."
+    while [ $attempt -le $max_attempts ]; do
+        if sudo -u postgres psql -c "SELECT 1" &>/dev/null; then
+            log "PostgreSQL is ready"
+            return 0
+        fi
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+    err "PostgreSQL failed to start after ${max_attempts} seconds"
+}
+
 # Header
 echo -e "${BLUE}"
 cat << 'EOF'
@@ -84,6 +100,8 @@ kill_port $BACKEND_PORT
 kill_port $FRONTEND_PORT
 sudo systemctl stop aivision-backend 2>/dev/null || true
 sudo systemctl stop nginx 2>/dev/null || true
+sudo systemctl stop postgresql 2>/dev/null || true
+kill_port 5432
 log "Ports cleared"
 
 # ============================================================================
@@ -116,8 +134,9 @@ log "Dependencies installed"
 # ============================================================================
 step "4/8" "Configuring PostgreSQL"
 
-sudo systemctl start postgresql
 sudo systemctl enable postgresql
+sudo systemctl restart postgresql
+wait_for_postgres
 
 sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
 sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
