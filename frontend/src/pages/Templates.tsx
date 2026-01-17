@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Save, X, FileText } from 'lucide-react';
 import { api } from '../services/api';
-import type { Template, TemplateField } from '../types';
-import { Loading, ErrorMessage, EmptyState, CardSkeleton } from '../components/Loading';
+import type { Template, FieldDefinition } from '../types';
+import { ErrorMessage, EmptyState, CardSkeleton } from '../components/Loading';
 import toast from 'react-hot-toast';
 
 /**

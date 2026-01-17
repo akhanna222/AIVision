@@ -24,6 +24,8 @@ export interface Country {
 export interface FieldDefinition {
   field_id: string;
   field_name: string;
+  name?: string;
+  type?: string;
   field_type: 'text' | 'number' | 'date' | 'currency' | 'boolean' | 'address' | 'phone' | 'email' | 'percentage';
   required: boolean;
   description: string;
@@ -36,8 +38,10 @@ export interface Template {
   id: number;
   template_id: string;
   template_name: string;
+  name?: string;
   category: string;
   country_id: number;
+  country_code?: string;
   description?: string;
   version: string;
   fields: FieldDefinition[];
@@ -164,4 +168,15 @@ export interface WebhookConfig {
   is_active: boolean;
   secret?: string;
   created_at: string;
+}
+
+export interface APILog {
+  id: number;
+  endpoint: string;
+  method: string;
+  status_code: number;
+  response_time_ms: number;
+  timestamp: string;
+  request_data?: Record<string, unknown>;
+  response_data?: Record<string, unknown>;
 }

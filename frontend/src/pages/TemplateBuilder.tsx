@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, FileText, CheckCircle, Copy, Sparkles, Wand2 } from 'lucide-react';
 import axios from 'axios';
 

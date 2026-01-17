@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCw, Search, Filter, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { RefreshCw, Search, Download } from 'lucide-react';
 import { api } from '../services/api';
 
 /**
