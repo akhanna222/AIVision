@@ -43,6 +43,11 @@ wait_for_postgres() {
         sleep 1
         attempt=$((attempt + 1))
     done
+    # Show diagnostics on failure
+    warn "PostgreSQL status:"
+    sudo systemctl status postgresql --no-pager || true
+    warn "PostgreSQL logs:"
+    sudo journalctl -u postgresql --no-pager -n 20 || true
     err "PostgreSQL failed to start after ${max_attempts} seconds"
 }
 
@@ -133,6 +138,24 @@ log "Dependencies installed"
 # POSTGRESQL
 # ============================================================================
 step "4/8" "Configuring PostgreSQL"
+
+# Clean up stale socket files
+sudo rm -f /var/run/postgresql/.s.PGSQL.* 2>/dev/null || true
+sudo rm -f /tmp/.s.PGSQL.* 2>/dev/null || true
+
+# Find PostgreSQL version installed
+PG_VERSION=$(ls /etc/postgresql/ 2>/dev/null | sort -V | tail -1)
+if [ -z "$PG_VERSION" ]; then
+    warn "No PostgreSQL cluster found, creating one..."
+    PG_VERSION=$(psql --version | grep -oP '\d+' | head -1)
+    sudo pg_createcluster $PG_VERSION main --start || true
+fi
+
+# Ensure data directory has correct permissions
+if [ -d "/var/lib/postgresql/$PG_VERSION/main" ]; then
+    sudo chown -R postgres:postgres /var/lib/postgresql/$PG_VERSION/main
+    sudo chmod 700 /var/lib/postgresql/$PG_VERSION/main
+fi
 
 sudo systemctl enable postgresql
 sudo systemctl restart postgresql
