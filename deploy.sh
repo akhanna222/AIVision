@@ -12,6 +12,17 @@ step() { echo -e "\n${BLUE}[$1]${NC} $2"; }
 kill_port() {
     local pids=$(lsof -ti :$1 2>/dev/null || true)
     [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true
+    sudo fuser -k $1/tcp 2>/dev/null || true
+}
+
+wait_port_free() {
+    local port=$1 max=15
+    for i in $(seq 1 $max); do
+        lsof -ti :$port &>/dev/null || return 0
+        warn "Port $port still in use, waiting... ($i/$max)"
+        sleep 2
+    done
+    err "Port $port still in use after ${max} attempts"
 }
 
 wait_for_postgres() {
@@ -76,10 +87,12 @@ PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1); [ -z "$PG_V
 warn "Stopping all PostgreSQL processes..."
 sudo systemctl stop postgresql@$PG_VERSION-main 2>/dev/null || true
 sudo systemctl stop postgresql 2>/dev/null || true
+sudo pg_ctlcluster $PG_VERSION main stop 2>/dev/null || true
+sudo pkill -9 -u postgres 2>/dev/null || true
 sudo pkill -9 postgres 2>/dev/null || true
-sleep 2
 kill_port 5432
-sudo rm -f /var/run/postgresql/.s.PGSQL.* /tmp/.s.PGSQL.* /var/run/postgresql/$PG_VERSION-main.* 2>/dev/null || true
+sudo rm -f /var/run/postgresql/.s.PGSQL.* /tmp/.s.PGSQL.* /var/run/postgresql/*.pid 2>/dev/null || true
+wait_port_free 5432
 warn "Creating PostgreSQL $PG_VERSION cluster on port 5432..."
 sudo pg_dropcluster $PG_VERSION main --stop 2>/dev/null || true
 sudo rm -rf /var/lib/postgresql/$PG_VERSION/main 2>/dev/null || true
