@@ -74,10 +74,10 @@ log "Dependencies installed"
 step "4/8" "PostgreSQL"
 sudo rm -f /var/run/postgresql/.s.PGSQL.* /tmp/.s.PGSQL.* 2>/dev/null || true
 PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1); [ -z "$PG_VERSION" ] && PG_VERSION="16"
-warn "Creating PostgreSQL $PG_VERSION cluster..."
+warn "Creating PostgreSQL $PG_VERSION cluster on port 5432..."
 sudo pg_dropcluster $PG_VERSION main --stop 2>/dev/null || true
 sudo rm -rf /var/lib/postgresql/$PG_VERSION/main 2>/dev/null || true
-sudo pg_createcluster $PG_VERSION main
+sudo pg_createcluster $PG_VERSION main --port=5432
 sudo systemctl daemon-reload
 sudo systemctl enable --now postgresql@$PG_VERSION-main
 wait_for_postgres
@@ -107,7 +107,6 @@ log "Config created"
 step "6/8" "Python setup"
 python3.11 -m venv venv && source venv/bin/activate
 pip install -q --upgrade pip && pip install -q -r requirements.txt
-alembic upgrade head
 log "Python ready"
 
 # 7. Frontend
