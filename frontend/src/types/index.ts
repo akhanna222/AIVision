@@ -27,7 +27,7 @@ export interface FieldDefinition {
   field_type: 'text' | 'number' | 'date' | 'currency' | 'boolean' | 'address' | 'phone' | 'email' | 'percentage';
   required: boolean;
   description: string;
-  validation_rules?: Record<string, any>;
+  validation_rules?: Record<string, unknown>;
   examples?: string[];
   extraction_hints?: string;
 }
@@ -41,7 +41,7 @@ export interface Template {
   description?: string;
   version: string;
   fields: FieldDefinition[];
-  page_structure?: Record<string, any>;
+  page_structure?: Record<string, unknown>;
   tags?: string[];
   is_custom: boolean;
   is_active: boolean;

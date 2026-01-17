@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import logging
 
-from app.services.vision.base import VisionModel
+from app.models import VisionModel
 from app.core.extraction_service import ExtractionService
 
 logger = logging.getLogger(__name__)

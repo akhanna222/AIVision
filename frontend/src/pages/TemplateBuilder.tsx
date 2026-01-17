@@ -91,7 +91,7 @@ export default function TemplateBuilder() {
     setFields(fields.filter((_, i) => i !== index));
   };
 
-  const updateField = (index: number, key: keyof TemplateField, value: any) => {
+  const updateField = (index: number, key: keyof TemplateField, value: string | boolean) => {
     const newFields = [...fields];
     newFields[index] = { ...newFields[index], [key]: value };
     setFields(newFields);
