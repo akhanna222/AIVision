@@ -5,10 +5,13 @@ import { ErrorMessage, EmptyState, CardSkeleton } from '../components/Loading';
 import toast from 'react-hot-toast';
 
 interface TemplateField {
-  name: string;
-  type: string;
+  name?: string;
+  field_name?: string;
+  field_id?: string;
+  type?: string;
+  field_type?: string;
   required: boolean;
-  description: string;
+  description?: string;
 }
 
 interface EditableTemplate {
