@@ -12,17 +12,6 @@ step() { echo -e "\n${BLUE}[$1]${NC} $2"; }
 kill_port() {
     local pids=$(lsof -ti :$1 2>/dev/null || true)
     [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true
-    sudo fuser -k $1/tcp 2>/dev/null || true
-}
-
-wait_port_free() {
-    local port=$1 max=15
-    for i in $(seq 1 $max); do
-        lsof -ti :$port &>/dev/null || return 0
-        warn "Port $port still in use, waiting... ($i/$max)"
-        sleep 2
-    done
-    err "Port $port still in use after ${max} attempts"
 }
 
 wait_for_postgres() {
@@ -31,7 +20,6 @@ wait_for_postgres() {
         sudo -u postgres psql -c "SELECT 1" &>/dev/null && log "PostgreSQL ready" && return 0
         sleep 1
     done
-    sudo systemctl status postgresql@$PG_VERSION-main --no-pager || true
     err "PostgreSQL failed to start"
 }
 
@@ -49,7 +37,7 @@ echo -e "${NC}"
 [ ! -f /etc/os-release ] && err "Unsupported OS"
 
 # 1. Configuration
-step "1/8" "Configuration"
+step "1/7" "Configuration"
 echo -e "\nAPI Keys (at least one required):"
 read -p "  Gemini: " GEMINI_KEY
 read -p "  OpenAI: " OPENAI_KEY
@@ -66,49 +54,35 @@ read -p "  Backend port [8000]: " BACKEND_PORT; BACKEND_PORT=${BACKEND_PORT:-800
 read -p "  Frontend port [3000]: " FRONTEND_PORT; FRONTEND_PORT=${FRONTEND_PORT:-3000}
 SECRET_KEY=$(openssl rand -hex 32)
 
-# 2. Stop services
-step "2/8" "Stopping services"
-sudo systemctl stop aivision-backend nginx postgresql 2>/dev/null || true
-kill_port $BACKEND_PORT; kill_port $FRONTEND_PORT; kill_port 5432
+# 2. Stop existing services
+step "2/7" "Stopping services"
+sudo systemctl stop aivision-backend nginx 2>/dev/null || true
+kill_port $BACKEND_PORT
+kill_port $FRONTEND_PORT
 log "Services stopped"
 
 # 3. Dependencies
-step "3/8" "Installing dependencies"
+step "3/7" "Installing dependencies"
 sudo apt update -qq
 sudo apt install -y -qq software-properties-common
 apt-cache show python3.11 &>/dev/null || { warn "Adding deadsnakes PPA..."; sudo add-apt-repository -y ppa:deadsnakes/ppa; sudo apt update -qq; }
-sudo apt install -y -qq python3.11 python3.11-venv python3.11-dev postgresql postgresql-contrib nginx curl build-essential libpq-dev poppler-utils tesseract-ocr lsof psmisc
-# Stop PostgreSQL immediately after install (apt auto-starts it)
-sudo systemctl stop postgresql 2>/dev/null || true
-sudo pkill -9 postgres 2>/dev/null || true
+sudo apt install -y -qq python3.11 python3.11-venv python3.11-dev postgresql postgresql-contrib nginx curl build-essential libpq-dev poppler-utils tesseract-ocr lsof
 command -v node &>/dev/null || { curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -; sudo apt install -y nodejs; }
 log "Dependencies installed"
 
-# 4. PostgreSQL
-step "4/8" "PostgreSQL"
-PG_VERSION=$(psql --version 2>/dev/null | grep -oP '\d+' | head -1); [ -z "$PG_VERSION" ] && PG_VERSION="16"
-warn "Stopping all PostgreSQL processes..."
-sudo systemctl stop postgresql@$PG_VERSION-main 2>/dev/null || true
-sudo systemctl stop postgresql 2>/dev/null || true
-sudo pg_ctlcluster $PG_VERSION main stop 2>/dev/null || true
-sudo pkill -9 -u postgres 2>/dev/null || true
-sudo pkill -9 postgres 2>/dev/null || true
-kill_port 5432
-sudo rm -f /var/run/postgresql/.s.PGSQL.* /tmp/.s.PGSQL.* /var/run/postgresql/*.pid 2>/dev/null || true
-wait_port_free 5432
-warn "Creating PostgreSQL $PG_VERSION cluster on port 5432..."
-sudo pg_dropcluster $PG_VERSION main --stop 2>/dev/null || true
-sudo rm -rf /var/lib/postgresql/$PG_VERSION/main 2>/dev/null || true
-sudo pg_createcluster $PG_VERSION main --port=5432
-sudo systemctl daemon-reload
-sudo systemctl enable --now postgresql@$PG_VERSION-main
+# 4. PostgreSQL - just use the cluster apt created
+step "4/7" "PostgreSQL"
+sudo systemctl enable postgresql
+sudo systemctl start postgresql || sudo systemctl restart postgresql
 wait_for_postgres
-sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME; DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS'; CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
+sudo -u postgres psql -c "DROP USER IF EXISTS $DB_USER;" 2>/dev/null || true
+sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';"
+sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
 log "PostgreSQL configured"
 
 # 5. Application
-step "5/8" "Application setup"
+step "5/7" "Application setup"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 sudo mkdir -p $APP_DIR && sudo chown $USER:$USER $APP_DIR
 [ "$SCRIPT_DIR" != "$APP_DIR" ] && cp -r "$SCRIPT_DIR"/* $APP_DIR/
@@ -125,21 +99,18 @@ FRONTEND_PORT=$FRONTEND_PORT
 EOF
 log "Config created"
 
-# 6. Python
-step "6/8" "Python setup"
+# 6. Python & Frontend
+step "6/7" "Building application"
 python3.11 -m venv venv && source venv/bin/activate
 pip install -q --upgrade pip && pip install -q -r requirements.txt
 log "Python ready"
-
-# 7. Frontend
-step "7/8" "Frontend build"
 cd $APP_DIR/frontend
 echo "VITE_API_URL=http://localhost:$BACKEND_PORT" > .env
 npm install --silent && npm run build --silent
 log "Frontend built"
 
-# 8. Services
-step "8/8" "Starting services"
+# 7. Services
+step "7/7" "Starting services"
 sudo tee /etc/systemd/system/aivision-backend.service > /dev/null << EOF
 [Unit]
 Description=AIVision Backend
