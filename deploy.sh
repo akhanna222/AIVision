@@ -77,7 +77,10 @@ step "3/8" "Installing dependencies"
 sudo apt update -qq
 sudo apt install -y -qq software-properties-common
 apt-cache show python3.11 &>/dev/null || { warn "Adding deadsnakes PPA..."; sudo add-apt-repository -y ppa:deadsnakes/ppa; sudo apt update -qq; }
-sudo apt install -y -qq python3.11 python3.11-venv python3.11-dev postgresql postgresql-contrib nginx curl build-essential libpq-dev poppler-utils tesseract-ocr lsof
+sudo apt install -y -qq python3.11 python3.11-venv python3.11-dev postgresql postgresql-contrib nginx curl build-essential libpq-dev poppler-utils tesseract-ocr lsof psmisc
+# Stop PostgreSQL immediately after install (apt auto-starts it)
+sudo systemctl stop postgresql 2>/dev/null || true
+sudo pkill -9 postgres 2>/dev/null || true
 command -v node &>/dev/null || { curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -; sudo apt install -y nodejs; }
 log "Dependencies installed"
 
