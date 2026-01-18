@@ -1,0 +1,42 @@
+# Vercel Serverless Function Dependencies
+# Minimal dependencies for serverless deployment
+
+# Core Framework
+fastapi>=0.109.0
+mangum>=0.17.0
+pydantic>=2.5.3
+pydantic-settings>=2.1.0
+
+# ASGI Server (for local testing)
+uvicorn>=0.27.0
+
+# Vision Model Clients
+google-generativeai>=0.3.2
+openai>=1.10.0
+anthropic>=0.18.1
+
+# HTTP Client
+httpx>=0.26.0
+aiohttp>=3.9.1
+
+# File Processing
+python-multipart>=0.0.6
+pillow>=10.2.0
+
+# Database (for Vercel Postgres / Neon)
+sqlalchemy>=2.0.25
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9
+
+# Authentication
+pyjwt>=2.8.0
+passlib>=1.7.4
+bcrypt>=4.1.2
+
+# Utilities
+python-dotenv>=1.0.1
+python-dateutil>=2.8.2
+
+# Note: Heavy dependencies like pdf2image, poppler-utils are not included
+# as they require system-level dependencies not available in Vercel serverless.
+# For full PDF processing, use the Railway/Render backend deployment option.
